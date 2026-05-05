@@ -13,6 +13,7 @@ from backend.services.pdf_report import generate_report_pdf
 from backend.services.semantic_index import SemanticCandidateIndex
 from backend.services.similarity import SemanticSimilarityEngine, SimilarityEngine
 from backend.services.storage import SQLiteStore
+from backend.services.preprocessing import Preprocessor  
 from backend.utils.cache import TTLCache
 from backend.utils.text import preprocess_text
 
@@ -34,6 +35,7 @@ class ReportingDependencies:
 class ReportingService:
     def __init__(self, deps: ReportingDependencies) -> None:
         self.deps = deps
+        self.preprocessor = Preprocessor()  
 
     def run_check(self, text: str, top_k: int = 5, use_semantic: bool = False) -> CheckResponse:
         cache_key = self.deps.cache.build_key(text, str(top_k), str(use_semantic))
@@ -42,19 +44,31 @@ class ReportingService:
             cached["from_cache"] = True
             return CheckResponse(**cached)
 
+        #  clean text first
+        processed = self.preprocessor.process(text)
+        clean_text = processed.raw_text
+
         if use_semantic:
-            indexed_candidates = self.deps.semantic_index.search(text, limit=self.deps.max_source_candidates)
+            indexed_candidates = self.deps.semantic_index.search(
+                clean_text, limit=self.deps.max_source_candidates
+            )
         else:
-            indexed_candidates = self.deps.candidate_index.search(text, limit=self.deps.max_source_candidates)
+            indexed_candidates = self.deps.candidate_index.search(
+                clean_text, limit=self.deps.max_source_candidates
+            )
 
-        candidates = indexed_candidates or self.deps.store.fetch_candidate_documents(limit=self.deps.max_source_candidates)
-        comparisons = self.deps.similarity_engine.compare(text, candidates)
+        candidates = indexed_candidates or self.deps.store.fetch_candidate_documents(
+            limit=self.deps.max_source_candidates
+        )
+
+        comparisons = self.deps.similarity_engine.compare(clean_text, candidates)
 
         if use_semantic:
-            comparisons = self.deps.semantic_engine.rerank(text, comparisons)
+            comparisons = self.deps.semantic_engine.rerank(clean_text, comparisons)
 
         selected = comparisons[:top_k]
         top_score = selected[0]["score"] if selected else 0.0
+
         classification = classify_similarity(
             top_score,
             suspicious_threshold=self.deps.suspicious_threshold,
@@ -65,7 +79,9 @@ class ReportingService:
         for item in selected:
             overlap_pool.extend(item.get("overlap_sentences", []))
 
-        highlighted = highlight_sentences(text, overlap_pool)
+        #  highlight clean text
+        highlighted = highlight_sentences(clean_text, overlap_pool)
+
         report_id = uuid4().hex
         created_at = datetime.now(timezone.utc)
 
@@ -105,11 +121,12 @@ class ReportingService:
             from_cache=False,
         )
 
+        # store clean text
         self.deps.store.save_report(
             {
                 "report_id": report_id,
                 "created_at": created_at.isoformat(),
-                "original_text": text,
+                "original_text": clean_text,
                 "highlighted_text": highlighted,
                 "similarity_score": response.similarity_score,
                 "classification": response.classification,
@@ -120,6 +137,7 @@ class ReportingService:
 
         payload = response.model_dump(mode="json")
         self.deps.cache.set(cache_key, payload)
+
         return response
 
     def fetch_report(self, report_id: str) -> dict | None:
@@ -133,29 +151,39 @@ class ReportingService:
         return generate_report_pdf(target, report)
 
     def compare_texts(self, left_text: str, right_text: str) -> dict:
+        #  clean both texts
+        left_clean = self.preprocessor.process(left_text).raw_text
+        right_clean = self.preprocessor.process(right_text).raw_text
+
         left_candidate = [
             {
                 "document_id": "right-text",
                 "title": "Right Text",
-                "raw_text": right_text,
-                "processed_text": preprocess_text(right_text),
+                "raw_text": right_clean,
+                "processed_text": preprocess_text(right_clean),
             }
         ]
+
         right_candidate = [
             {
                 "document_id": "left-text",
                 "title": "Left Text",
-                "raw_text": left_text,
-                "processed_text": preprocess_text(left_text),
+                "raw_text": left_clean,
+                "processed_text": preprocess_text(left_clean),
             }
         ]
 
-        forward_matches = self.deps.similarity_engine.compare(left_text, left_candidate)
-        backward_matches = self.deps.similarity_engine.compare(right_text, right_candidate)
+        forward_matches = self.deps.similarity_engine.compare(left_clean, left_candidate)
+        backward_matches = self.deps.similarity_engine.compare(right_clean, right_candidate)
+
         forward = forward_matches[0] if forward_matches else {"score": 0.0, "overlap_sentences": [], "heatmap": []}
         backward = backward_matches[0] if backward_matches else {"score": 0.0, "overlap_sentences": [], "heatmap": []}
 
-        similarity_score = round((float(forward.get("score", 0.0)) + float(backward.get("score", 0.0))) / 2, 2)
+        similarity_score = round(
+            (float(forward.get("score", 0.0)) + float(backward.get("score", 0.0))) / 2,
+            2,
+        )
+
         classification = classify_similarity(
             similarity_score,
             suspicious_threshold=self.deps.suspicious_threshold,
@@ -163,7 +191,8 @@ class ReportingService:
         )
 
         overlap_sentences = sorted(
-            set((forward.get("overlap_sentences", []) or []) + (backward.get("overlap_sentences", []) or [])),
+            set((forward.get("overlap_sentences", []) or []) +
+                (backward.get("overlap_sentences", []) or [])),
             key=len,
             reverse=True,
         )
@@ -172,8 +201,8 @@ class ReportingService:
             "comparison_id": uuid4().hex,
             "similarity_score": similarity_score,
             "classification": classification,
-            "highlighted_text_a": highlight_sentences(left_text, overlap_sentences),
-            "highlighted_text_b": highlight_sentences(right_text, overlap_sentences),
+            "highlighted_text_a": highlight_sentences(left_clean, overlap_sentences),
+            "highlighted_text_b": highlight_sentences(right_clean, overlap_sentences),
             "overlap_sentences": overlap_sentences,
             "source_count": 2,
             "heatmap": forward.get("heatmap", []),
