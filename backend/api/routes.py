@@ -276,3 +276,85 @@ async def compare_text(request: Request, reporting_service: ReportingService = D
 
     payload = reporting_service.compare_texts(text_a, text_b)
     return CompareTextResponse(**payload)
+
+
+@router.post("/rewrite")
+def rewrite_sentence(request: CheckRequest):
+    """
+    Generate alternative phrasings and improvement suggestions for a sentence.
+    
+    Args:
+        request.text: Sentence to rewrite
+    
+    Returns:
+        JSON with rewrites, suggestions, and improvement tips
+    """
+    from backend.services.rewrite_service import RewriteService
+    
+    sentence = request.text.strip()
+    
+    if len(sentence) < 10:
+        raise HTTPException(status_code=400, detail="Sentence must be at least 10 characters long")
+    
+    if len(sentence) > 500:
+        raise HTTPException(status_code=400, detail="Sentence must be less than 500 characters")
+    
+    service = RewriteService()
+    result = service.get_improvement_suggestions(sentence)
+    
+    return {
+        "original": result["original"],
+        "rewrites": result["rewrites"],
+        "suggestions": result["suggestions"],
+        "word_count": result["word_count"],
+    }
+
+
+@router.post("/analyze-sentences")
+def analyze_sentences(request: CheckRequest):
+    """
+    Analyze text at sentence level with plagiarism scores.
+    
+    Args:
+        request.text: Text to analyze
+    
+    Returns:
+        JSON with list of sentences and their plagiarism scores
+    """
+    from backend.services.text_plagiarism_check import HybridTextPlagiarismChecker
+    from backend.services.preprocessing import Preprocessor
+    
+    if len(request.text.strip()) < 20:
+        raise HTTPException(status_code=400, detail="Text must be at least 20 characters long")
+    
+    # Preprocess text
+    preprocessor = Preprocessor()
+    processed = preprocessor.process(request.text)
+    
+    # Run analysis
+    checker = HybridTextPlagiarismChecker()
+    report = checker._analyze(processed.normalized_text, skip_wikipedia=False)
+    
+    # Build sentence response
+    sentences_data = []
+    for sentence_result in report.get("sentence_results", []):
+        sentences_data.append({
+            "text": sentence_result.get("sentence", ""),
+            "score": sentence_result.get("similarity_score", 0),
+            "classification": sentence_result.get("classification", "original"),
+            "sources": [
+                {
+                    "title": src.get("title", "Unknown"),
+                    "similarity": src.get("similarity", 0),
+                    "source": src.get("source_type", "Local Database")
+                }
+                for src in sentence_result.get("matched_sources", [])[:3]
+            ]
+        })
+    
+    return {
+        "total_sentences": len(sentences_data),
+        "avg_score": report.get("similarity_score", 0),
+        "classification": report.get("classification", "original"),
+        "sentences": sentences_data
+    }
