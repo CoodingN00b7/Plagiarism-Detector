@@ -57,6 +57,7 @@ function ResultHeader({ score, classification }) {
           {classification}
         </h2>
       </div>
+
       <div className="self-start rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-right shadow-[var(--shadow)] sm:px-4 sm:py-3">
         <div className="text-3xl font-bold text-[var(--text)] sm:text-4xl">
           {score === null || score === undefined
@@ -71,12 +72,14 @@ function ResultHeader({ score, classification }) {
   );
 }
 
-// ================= TEXT CLEANER =================
+// ================= SAFE TEXT FIX =================
 function fixBrokenText(html) {
   if (!html) return "";
 
-  // Remove unwanted spacing between letters but keep HTML tags safe
-  return html.replace(/(?<!>)\b(\w)\s+(?=\w\b)/g, "$1");
+  // Fix only extreme spaced words like: T e c h n o l o g y
+  return html.replace(/\b(?:\w\s){3,}\w\b/g, (match) =>
+    match.replace(/\s+/g, "")
+  );
 }
 
 // ================= RESULT PANEL =================
@@ -87,7 +90,9 @@ function ResultPanel({ title, html }) {
 
       <div
         className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text)] sm:mt-3 sm:leading-7"
-        dangerouslySetInnerHTML={{ __html: fixBrokenText(html) }}
+        dangerouslySetInnerHTML={{
+          __html: fixBrokenText(html),
+        }}
       />
     </section>
   );
@@ -100,6 +105,7 @@ function SourcesBlock({ title, items, emptyText }) {
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 backdrop-blur-xl sm:p-4">
       <h3 className="text-sm font-semibold text-[var(--text)]">{title}</h3>
+
       <div className="mt-2 space-y-2 sm:mt-3">
         {list.length ? (
           list.map((item, index) => (
