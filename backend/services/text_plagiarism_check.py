@@ -18,6 +18,7 @@ from backend.services.wikipedia_service import WikipediaService
 from backend.utils.cache import TTLCache
 from backend.utils.config import get_settings
 from backend.utils.text import split_sentences
+from backend.services.text_normalization import TextNormalizer
 
 
 class HybridTextPlagiarismChecker:
@@ -32,11 +33,15 @@ class HybridTextPlagiarismChecker:
             suspicious_threshold=settings.similarity_threshold_original,
             plagiarized_threshold=settings.similarity_threshold_suspicious,
         )
+        self.text_normalizer = TextNormalizer()
 
     def _analyze(self, text: str, skip_wikipedia: bool = False) -> dict:
-        sentences = split_sentences(text)
+        # CRITICAL: Normalize text first to fix spacing issues
+        normalized_text = self.text_normalizer.normalize(text)
+        
+        sentences = split_sentences(normalized_text)
         if not sentences:
-            sentences = [text.strip()] if text.strip() else []
+            sentences = [normalized_text.strip()] if normalized_text.strip() else []
 
         sentence_results: list[dict] = []
         for sentence in sentences:
@@ -47,7 +52,8 @@ class HybridTextPlagiarismChecker:
             }
             sentence_results.append(self.scoring_service.score_sentence(sentence, source_hits))
 
-        report = self.scoring_service.build_report(text, sentence_results)
+        # Use normalized text for highlighting
+        report = self.scoring_service.build_report(normalized_text, sentence_results)
         report["sentence_results"] = sentence_results
         return report
 
@@ -70,11 +76,13 @@ class HybridTextPlagiarismChecker:
             from_cache=False,
         )
 
+        # Store normalized text
+        normalized_text = self.text_normalizer.normalize(text)
         self.store.save_report(
             {
                 "report_id": response.report_id,
                 "created_at": response.created_at.isoformat(),
-                "original_text": text,
+                "original_text": normalized_text,
                 "highlighted_text": response.highlighted_text,
                 "similarity_score": response.similarity_score,
                 "classification": response.classification,
