@@ -1,0 +1,16 @@
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/.mypy_cache
+**/.venv
+**/venv
+**/node_modules
+frontend/dist
+backend/storage/*.db
+backend/storage/pdf_reports/*
+backend/storage/uploads/*
+!backend/storage/.gitkeep
+!backend/storage/pdf_reports/.gitkeep
+!backend/storage/uploads/.gitkeep

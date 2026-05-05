@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.python-version
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Databases / runtime
+*.db
+*.sqlite3
+*.db-journal
+
+# Backend runtime data
+backend/storage/*.db
+backend/storage/pan2011_processed.json
+backend/storage/uploads/*
+backend/storage/pdf_reports/*
+backend/storage/faiss_index/*.npy
+backend/storage/faiss_index/*.pkl
+backend/storage/faiss_index/*.faiss
+backend/storage/pan2011/*
+
+!backend/storage/uploads/.gitkeep
+!backend/storage/pdf_reports/.gitkeep
+!backend/storage/pan2011/.gitkeep
+!backend/storage/.gitkeep
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Root uploads
+uploads/
+uploaded_documents/
+
+# Build files
+build/
+dist/
+*.egg-info/
+
+# IDE / OS
+.DS_Store
+.vscode/
