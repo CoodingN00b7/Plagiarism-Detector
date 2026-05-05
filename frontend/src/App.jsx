@@ -5,21 +5,19 @@ import HomePage from "./pages/HomePage";
 import ResultPage from "./pages/ResultPage";
 
 export default function App() {
-  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
+  const [theme, setTheme] = useState("dark");
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem("theme", theme);
   }, [theme]);
 
   return (
-    <div className="min-h-screen text-[var(--text)]">
-      <Navbar theme={theme} onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))} />
+    <div className="min-h-screen">
+      <Navbar theme={theme} onToggleTheme={() => setTheme("dark")} />
 
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-6xl px-4 py-10">
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/check" element={<HomePage />} />
           <Route path="/result/:reportId" element={<ResultPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
