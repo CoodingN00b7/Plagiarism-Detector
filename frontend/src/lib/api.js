@@ -1,6 +1,6 @@
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
-  "https://plagiarism-detector-25fl.onrender.com";
+  "https://plagiarism-detector-25fl.onrender.com/api/v1";
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -12,7 +12,7 @@ async function requestJson(url, options = {}) {
   return response.json();
 }
 
-// 🔍 Analyze single text
+
 export async function analyzeText(
   { text, top_k = 5, use_semantic = false, signal } = {}
 ) {
@@ -26,7 +26,22 @@ export async function analyzeText(
   });
 }
 
-// 📄 Upload single file
+// 🔥 Advanced plagiarism check (sentence-level + sources)
+export async function checkPlagiarismText(text, signal) {
+  return requestJson(`${API_BASE}/check-plagiarism-text`, {
+    method: "POST",
+    signal,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text,
+      skip_wikipedia: false,
+    }),
+  });
+}
+
+
 export async function uploadFile(file, signal) {
   const formData = new FormData();
   formData.append("file", file);
@@ -38,7 +53,7 @@ export async function uploadFile(file, signal) {
   });
 }
 
-// 📂 Analyze multiple files
+
 export async function analyzeFiles(files, signal) {
   const formData = new FormData();
 
@@ -53,7 +68,7 @@ export async function analyzeFiles(files, signal) {
   });
 }
 
-// 🔁 Compare text / files
+
 export async function compareText(payload, signal) {
   const hasFiles = Boolean(payload.file_a || payload.file_b);
 
@@ -85,21 +100,22 @@ export async function compareText(payload, signal) {
   });
 }
 
-// 📚 Fetch stored docs
+
 export async function fetchDocuments(signal) {
   return requestJson(`${API_BASE}/documents`, { signal });
 }
 
-// 📊 Report
 export async function fetchReport(reportId, signal) {
   return requestJson(`${API_BASE}/report/${reportId}`, { signal });
 }
 
 export async function fetchReportExplanation(reportId, signal) {
-  return requestJson(`${API_BASE}/report/${reportId}/explain`, { signal });
+  return requestJson(`${API_BASE}/report/${reportId}/explain`, {
+    signal,
+  });
 }
 
-// 📄 Export links
+
 export function reportPdfUrl(reportId) {
   return `${API_BASE}/report/${reportId}/pdf`;
 }
@@ -108,7 +124,7 @@ export function reportJsonUrl(reportId) {
   return `${API_BASE}/report/${reportId}/export`;
 }
 
-// ❌ Error handler
+
 async function readError(response) {
   try {
     const payload = await response.json();
