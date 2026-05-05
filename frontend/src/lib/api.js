@@ -12,35 +12,25 @@ async function requestJson(url, options = {}) {
   return response.json();
 }
 
-
 export async function analyzeText(
   { text, top_k = 5, use_semantic = false, signal } = {}
 ) {
   return requestJson(`${API_BASE}/check`, {
     method: "POST",
     signal,
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, top_k, use_semantic }),
   });
 }
 
-// 🔥 Advanced plagiarism check (sentence-level + sources)
 export async function checkPlagiarismText(text, signal) {
   return requestJson(`${API_BASE}/check-plagiarism-text`, {
     method: "POST",
     signal,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      text,
-      skip_wikipedia: false,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, skip_wikipedia: false }),
   });
 }
-
 
 export async function uploadFile(file, signal) {
   const formData = new FormData();
@@ -52,7 +42,6 @@ export async function uploadFile(file, signal) {
     body: formData,
   });
 }
-
 
 export async function analyzeFiles(files, signal) {
   const formData = new FormData();
@@ -67,7 +56,6 @@ export async function analyzeFiles(files, signal) {
     body: formData,
   });
 }
-
 
 export async function compareText(payload, signal) {
   const hasFiles = Boolean(payload.file_a || payload.file_b);
@@ -90,16 +78,13 @@ export async function compareText(payload, signal) {
   return requestJson(`${API_BASE}/compare-text`, {
     method: "POST",
     signal,
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       text_a: payload.text_a,
       text_b: payload.text_b,
     }),
   });
 }
-
 
 export async function fetchDocuments(signal) {
   return requestJson(`${API_BASE}/documents`, { signal });
@@ -115,7 +100,6 @@ export async function fetchReportExplanation(reportId, signal) {
   });
 }
 
-
 export function reportPdfUrl(reportId) {
   return `${API_BASE}/report/${reportId}/pdf`;
 }
@@ -123,7 +107,6 @@ export function reportPdfUrl(reportId) {
 export function reportJsonUrl(reportId) {
   return `${API_BASE}/report/${reportId}/export`;
 }
-
 
 async function readError(response) {
   try {
