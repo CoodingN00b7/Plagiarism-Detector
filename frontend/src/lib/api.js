@@ -1,6 +1,6 @@
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
-  "https://plagiarism-detector-25fl.onrender.com/api/v1";
+  "https://plagiarism-detector-25fl.onrender.com";
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, options);
